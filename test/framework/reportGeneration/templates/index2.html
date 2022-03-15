@@ -1,0 +1,105 @@
+<html>
+<html>
+<head>
+<style>
+table, th, td {
+  border: 1px solid black;
+  border-collapse: collapse;
+  text-align: center;
+}
+th{
+  background-color: #96D4D4;
+}
+.red {
+  background-color: red;
+    }
+.green {
+  background-color: green;
+    }
+.collapsible {
+  background-color: #ADD8E6;
+  cursor: pointer;
+  hmax-width: 50px;
+  line-height: 30px;
+  height:30px;
+  border-radius: 12px;
+  border: none;
+  text-align: center;
+  outline: none;
+}
+
+/* Add a background color to the button if it is clicked on (add the .active class with JS), and when you move the mouse over it (hover) */
+.active, .collapsible:hover {
+  background-color: #ccc;
+}
+
+/* Style the collapsible content. Note: hidden by default */
+.content {
+  padding: 0 18px;
+  display: none;
+<!--  white-space: pre-line;-->
+  overflow: hidden;
+  line-height : 1px;
+  background-color: #f1f1f1;
+}
+</style>
+</head>
+
+
+<body>
+<table style="width:100%">
+    <colgroup>
+       <col span="1" style="width: 20%;">
+       <col span="1" style="width: 20%;">
+       <col span="1" style="width: 60%;">
+    </colgroup>
+  <thead>
+    <tr>
+      <th>Infrastructure</th>
+      <th>Run Report</th>
+    </tr>
+  </thead>
+  <tbody>
+      {% for key, value in variable.items() %}
+           <tr>
+               <td> {{ key }} </td>
+        <!--       <td> {{ value }} </td>-->
+               {% if value[0] == "PASS" %}
+                        <td class="green">{{ value[0] }}</td>
+               {% else %}
+                        <td class="red">{{ value[0] }}</td>
+               {% endif %}
+               <td>
+                   <button type="button" class="collapsible">Details</button>
+                    <div class="content">
+                        {% for line in value[1].split('\n') %}
+                            {{ line }}
+                            <p>
+                            {% endfor %}}
+                    </div>
+               </td>
+           </tr>
+      {% endfor %}
+  </tbody>
+</table>
+</table>
+
+<script>
+var coll = document.getElementsByClassName("collapsible");
+var i;
+
+for (i = 0; i < coll.length; i++) {
+  coll[i].addEventListener("click", function() {
+    this.classList.toggle("active");
+    var content = this.nextElementSibling;
+    if (content.style.display === "block") {
+      content.style.display = "none";
+    } else {
+      content.style.display = "block";
+    }
+  });
+}
+</script>
+
+</body>
+</html>
