@@ -1,0 +1,209 @@
+#!/bin/bash
+
+# Copyright 2021 VMware Tanzu Community Edition contributors. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# This script tests TCE Management cluster on AWS.
+# It builds TCE, spins up a management cluster in AWS,
+# creates a workload cluster, installs the default packages,
+# tests the e2e functionality of Gatekeeper package and cleans the environment.
+# Note: This is WIP and supports only Linux(Debian) and MacOS
+# Following environment variables need to be exported before running the script
+# AWS_ACCOUNT_ID
+# AWS_ACCESS_KEY_ID
+# AWS_SECRET_ACCESS_KEY
+# AWS_B64ENCODED_CREDENTIALS
+# AWS_SSH_KEY_NAME
+# Region is set to us-east-2
+# The best way to run this is by calling `make tce-aws-managed-cluster-e2e-test`
+# from the root of the TCE repository.
+
+TCE_REPO_PATH="$(git rev-parse --show-toplevel)"
+
+for ARGUMENT in "$@"
+do
+    KEY=$(echo $ARGUMENT | cut -f1 -d=)
+    VALUE=$(echo $ARGUMENT | cut -f2 -d=)
+    case "$KEY" in
+            build)              build=${VALUE} ;;
+            setup)      setup=${VALUE} ;;
+            cleanup)           cleanup=${VALUE} ;;
+            managedclustername)           managedclustername=${VALUE} ;;
+            guestclustername)           guestclustername=${VALUE} ;;
+            *)
+    esac
+done
+
+# shellcheck source=test/util/utils.sh
+source "${TCE_REPO_PATH}/test/util/utils.sh"
+# shellcheck source=test/util/aws-nuke-tear-down.sh
+source "${TCE_REPO_PATH}/test/util/aws-nuke-tear-down.sh"
+if [ $build != 'no' ]
+then
+    "${TCE_REPO_PATH}/test/build-tce.sh" || { error "TCE installation failed!"; exit 1; }
+    "${TCE_REPO_PATH}/test/install-jq.sh"
+    "${TCE_REPO_PATH}/test/install-dependencies.sh" || { error "Dependency installation failed!"; exit 1; }
+fi
+
+
+function delete_management_cluster {
+    echo "$@"
+    export AWS_REGION="us-east-2"
+    export CLUSTER_NAME="${MGMT_CLUSTER_NAME}"
+    tanzu management-cluster delete "${CLUSTER_NAME}" -y || {
+        collect_management_cluster_diagnostics "${CLUSTER_NAME}"
+        delete_kind_cluster
+        kubeconfig_cleanup "${CLUSTER_NAME}"
+        aws-nuke-tear-down "MANAGEMENT CLUSTER DELETION FAILED! Deleting the cluster using AWS-NUKE..." "${CLUSTER_NAME}"
+    }
+}
+
+function nuke_management_and_workload_clusters {
+    export CLUSTER_NAME="${MGMT_CLUSTER_NAME}"
+    kubeconfig_cleanup "${CLUSTER_NAME}"
+    aws-nuke-tear-down "Deleting the MANAGEMENT CLUSTER using AWS-NUKE..." "${CLUSTER_NAME}"
+    export CLUSTER_NAME="${WLD_CLUSTER_NAME}"
+    kubeconfig_cleanup "${CLUSTER_NAME}"
+    aws-nuke-tear-down "Deleting the WORKLOAD CLUSTER using AWS-NUKE..." "${CLUSTER_NAME}"
+}
+
+function delete_workload_cluster {
+    echo "$@"
+    tanzu cluster delete "${WLD_CLUSTER_NAME}" --yes || {
+        collect_management_and_workload_cluster_diagnostics aws "${MGMT_CLUSTER_NAME}" "${WLD_CLUSTER_NAME}"
+        nuke_management_and_workload_clusters
+        exit 1
+    }
+    for (( i = 1 ; i <= 120 ; i++))
+    do
+        echo "Waiting for workload cluster to get deleted..."
+        num_of_clusters=$(tanzu cluster list -o json | jq 'length')
+        if [[ "$num_of_clusters" == "0" ]]; then
+            echo "Workload cluster ${WLD_CLUSTER_NAME} successfully deleted"
+            break
+        fi
+        if [[ "$i" == 120 ]]; then
+            echo "Timed out waiting for workload cluster ${WLD_CLUSTER_NAME} to get deleted"
+            echo "Using AWS NUKE to delete management and workload clusters"
+            collect_management_and_workload_cluster_diagnostics aws "${MGMT_CLUSTER_NAME}" "${WLD_CLUSTER_NAME}"
+            nuke_management_and_workload_clusters
+            exit 1
+        fi
+        sleep 5
+    done
+    # since tanzu cluster delete does not delete workload cluster kubeconfig entry
+    kubeconfig_cleanup "${WLD_CLUSTER_NAME}"
+    echo "Workload cluster ${WLD_CLUSTER_NAME} successfully deleted"
+}
+
+function create_management_cluster {
+    echo "Bootstrapping TCE management cluster on AWS..."
+    # Set management cluster name
+    if [ $clustername == '' ]
+    then
+      export CLUSTER_NAME_SUFFIX=${RANDOM}
+      export MGMT_CLUSTER_NAME="test-mc-${CLUSTER_NAME_SUFFIX}"
+      echo "Setting MANAGEMENT CLUSTER NAME to ${MGMT_CLUSTER_NAME}..."
+      export CLUSTER_NAME="${MGMT_CLUSTER_NAME}"
+    else
+      export MGMT_CLUSTER_NAME=$managedclustername
+      export WLD_CLUSTER_NAME=$guestclustername
+    fi
+    tanzu management-cluster create "${CLUSTER_NAME}" -f "${TCE_REPO_PATH}"/test/aws/cluster-config.yaml || {
+        error "MANAGEMENT CLUSTER CREATION FAILED!"
+        collect_management_cluster_diagnostics ${MGMT_CLUSTER_NAME}
+        delete_kind_cluster
+        kubeconfig_cleanup ${CLUSTER_NAME}
+        aws-nuke-tear-down "Deleting management cluster" "${MGMT_CLUSTER_NAME}"
+        exit 1
+    }
+    kubectl config use-context "${MGMT_CLUSTER_NAME}"-admin@"${MGMT_CLUSTER_NAME}" || {
+        error "CONTEXT SWITCH TO MANAGEMENT CLUSTER FAILED!"
+        delete_management_cluster "Deleting management cluster"
+        exit 1
+    }
+    kubectl wait --for=condition=ready pod --all --all-namespaces --timeout=900s || {
+        error "TIMED OUT WAITING FOR ALL PODS TO BE UP!"
+        collect_management_cluster_diagnostics ${MGMT_CLUSTER_NAME}
+        delete_management_cluster "Deleting management cluster"
+        exit 1
+    }
+    tanzu management-cluster get | grep "${MGMT_CLUSTER_NAME}" | grep running || {
+        error "MANAGEMENT CLUSTER NOT RUNNING!"
+        delete_management_cluster "Deleting management cluster"
+        exit 1
+    }
+}
+
+function create_workload_cluster {
+    echo "Creating workload cluster..."
+    # Set workload cluster name
+    if [ $clustername == '' ]
+    then
+      export WLD_CLUSTER_NAME="test-wld-${CLUSTER_NAME_SUFFIX}"
+    else
+      export WLD_CLUSTER_NAME=$guestclustername
+    echo "Setting WORKLOAD CLUSTER NAME to ${WLD_CLUSTER_NAME}..."
+    export CLUSTER_NAME="${WLD_CLUSTER_NAME}"
+    tanzu cluster create "${CLUSTER_NAME}" -f "${TCE_REPO_PATH}"/test/aws/cluster-config.yaml || {
+        error "WORKLOAD CLUSTER CREATION FAILED!"
+        collect_management_and_workload_cluster_diagnostics aws ${MGMT_CLUSTER_NAME} ${WLD_CLUSTER_NAME}
+        nuke_management_and_workload_clusters
+        exit 1
+    }
+    tanzu cluster kubeconfig get "${WLD_CLUSTER_NAME}" --admin
+    kubectl config use-context "${WLD_CLUSTER_NAME}"-admin@"${WLD_CLUSTER_NAME}" || {
+        error "CONTEXT SWITCH TO MANAGEMENT CLUSTER FAILED!"
+        delete_workload_cluster "Deleting workload cluster"
+        delete_management_cluster "Deleting management cluster"
+        exit 1
+    }
+    kubectl wait --for=condition=ready pod --all --all-namespaces --timeout=900s || {
+        error "TIMED OUT WAITING FOR ALL PODS TO BE UP!"
+        collect_management_and_workload_cluster_diagnostics aws ${MGMT_CLUSTER_NAME} ${WLD_CLUSTER_NAME}
+        delete_workload_cluster "Deleting workload cluster"
+        delete_management_cluster "Deleting management cluster"
+        exit 1
+    }
+}
+if [ $setup == 'yes' ]
+then
+  # Create management and workload clusters
+  create_management_cluster || exit 1
+  create_workload_cluster || exit 1
+
+  # Install packages
+  echo "Installing packages on TCE..."
+  "${TCE_REPO_PATH}"/test/add-tce-package-repo.sh || {
+      error "PACKAGE REPOSITORY INSTALLATION FAILED!"
+      collect_management_and_workload_cluster_diagnostics aws ${MGMT_CLUSTER_NAME} ${WLD_CLUSTER_NAME}
+      delete_workload_cluster "Deleting workload cluster"
+      delete_management_cluster "Deleting management cluster"
+      exit 1
+  }
+
+  tanzu package available list || {
+      error "UNEXPECTED FAILURE OCCURRED!"
+      collect_management_and_workload_cluster_diagnostics aws ${MGMT_CLUSTER_NAME} ${WLD_CLUSTER_NAME}
+      delete_workload_cluster "Deleting workload cluster"
+      delete_management_cluster "Deleting management cluster"
+      exit 1
+  }
+
+  # Run e2e test
+  echo "Starting Gatekeeper test..."
+  "${TCE_REPO_PATH}"/test/gatekeeper/e2e-test.sh || {
+      error "TEST FAILED!"
+      collect_management_and_workload_cluster_diagnostics aws ${MGMT_CLUSTER_NAME} ${WLD_CLUSTER_NAME}
+      delete_workload_cluster "Deleting workload cluster"
+      delete_management_cluster "Deleting management cluster"
+      exit 1
+  }
+fi
+if [ $cleanup == 'yes' ]
+then
+  # Clean up
+  echo "Cleaning up..."
+  delete_workload_cluster "Deleting workload cluster" || { exit 1; }
+  delete_management_cluster "Deleting management cluster" || { exit 1; }
+fi
