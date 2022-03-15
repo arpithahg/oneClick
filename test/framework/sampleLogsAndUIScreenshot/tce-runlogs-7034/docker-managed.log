@@ -1,0 +1,54 @@
+[36m#########################################
+[0m[36mCreate the managed cluster
+[0m[36m#########################################
+[0mChecking for Docker...
+Found Docker!
+Verifying Docker...
+[32mCreating managed cluster complete
+[0m[36m#########################################
+[0m[36mInstall the package repo
+[0m[36m#########################################
+[0mAdding TCE package repository...
+[K| Adding package repository 'tce-main-latest' [K
+
+
+✖  exit status 1 
+[32mAdding TCE repo complete
+[0m[36m#########################################
+[0m[36mRun the package tests
+[0m[36m#########################################
+[0mStarting Gatekeeper test...
+Installing Gatekeeper...
+[K| Installing package 'gatekeeper.community.tanzu.vmware.com' [K
+
+
+✖  exit status 1 
+[31mGatekeeper installation failed. TEST FAILED.
+[0m[32mGatekeeper run complete
+[0m[32mContour run complete
+[0m[32mCert-manager run complete
+[0m[32mfluent-bit run complete
+[0m[32mlocal-storage-path run complete
+[0mFailed to compile e2e:
+
+go: downloading sigs.k8s.io/e2e-framework v0.0.4
+go: writing go.mod cache: open /Users/arpithah/go/pkg/mod/cache/download/sigs.k8s.io/e2e-framework/@v/v0.0.4.mod298498081.tmp: permission denied
+go: writing go.mod cache: open /Users/arpithah/go/pkg/mod/cache/download/github.com/vladimirvivien/gexe/@v/v0.1.1.mod427131847.tmp: permission denied
+cluster.go:16:2: open /Users/arpithah/go/pkg/mod/cache/download/sigs.k8s.io/e2e-framework/@v/v0.0.4.lock: permission denied
+cluster.go:17:2: open /Users/arpithah/go/pkg/mod/cache/download/sigs.k8s.io/e2e-framework/@v/v0.0.4.lock: permission denied
+
+Ginkgo ran 1 suite in 7.791980008s
+Test Suite Failed
+[32mexternal-dns run complete
+[0m[32mmultius-cni run complete
+[0m[36m#########################################
+[0m[36mCollect support bundles
+[0m[36m#########################################
+[0m[36m#########################################
+[0m[36mCleanup the managed cluster
+[0m[36m#########################################
+[0mChecking for Docker...
+Found Docker!
+Verifying Docker...
+[32mDeleting managed cluster complete
+[0m

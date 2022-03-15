@@ -1,0 +1,17 @@
+[36m#########################################
+[0m[36mInstall from URL provided
+[0m[36m#########################################
+[0mfile name is 
+dir name is tce-darwin-amd64-v0.10.0-rc.1
+/Users/arpithah/Library/Application Support
+Uninstall complete!
+/Users/arpithah/Library/Application Support
+Installing tanzu cli to /usr/local/bin
+Removing old plugin cache from /Users/arpithah/.cache/tanzu/catalog.yaml
+[K| initializing [K✔  successfully initialized CLI 
+Installation complete!
+version: v0.10.0
+buildDate: 2021-11-16
+sha: fd96beb
+[36mInstallation complete
+[0m

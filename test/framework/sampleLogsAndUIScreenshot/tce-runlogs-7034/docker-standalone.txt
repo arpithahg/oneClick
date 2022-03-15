@@ -1,0 +1,80 @@
+[36m#########################################
+[0m[36mCreate the standalone cluster
+[0m[36m#########################################
+[0m./test/framework/docker-standalone-wrapper.sh: line 33: test/docker/run-tce-docker-standalone-cluster.sh: No such file or directory
+[32mCreating standalone cluster complete
+[0m[36m#########################################
+[0m[36mInstall the package repo
+[0m[36m#########################################
+[0m+ echo 'Adding TCE package repository...'
+Adding TCE package repository...
++ REPO_NAME=tce-main-latest
++ REPO_URL=projects.registry.vmware.com/tce/main:0.9.1
++ REPO_NAMESPACE=default
++ tanzu package repository add tce-main-latest --namespace default --url projects.registry.vmware.com/tce/main:0.9.1
+[K| Adding package repository 'tce-main-latest' [K
+
+Error: Get "https://127.0.0.1:41439/api?timeout=32s": dial tcp 127.0.0.1:41439: connect: connection refused
+Error: exit status 1
+
+✖  exit status 1 
+[32mAdding TCE repo complete
+[0m[36m#########################################
+[0m[36mRun the package tests
+[0m[36m#########################################
+[0mgo get github.com/onsi/ginkgo/ginkgo
+go: writing go.mod cache: open /Users/arpithah/go/pkg/mod/cache/download/sigs.k8s.io/e2e-framework/@v/v0.0.4.mod427131847.tmp: permission denied
+go: writing go.mod cache: open /Users/arpithah/go/pkg/mod/cache/download/github.com/vladimirvivien/gexe/@v/v0.1.1.mod939984059.tmp: permission denied
+go get: installing executables with 'go get' in module mode is deprecated.
+	To adjust and download dependencies of the current module, use 'go get -d'.
+	To install using requirements of the current module, use 'go install'.
+	To install ignoring the current module, use 'go install' with a version,
+	like 'go install example.com/cmd@latest'.
+	For more information, see https://golang.org/doc/go-get-install-deprecation
+	or run 'go help get' or 'go help install'.
+go get github.com/onsi/gomega/...
+go: writing go.mod cache: open /Users/arpithah/go/pkg/mod/cache/download/sigs.k8s.io/e2e-framework/@v/v0.0.4.mod298498081.tmp: permission denied
+go: writing go.mod cache: open /Users/arpithah/go/pkg/mod/cache/download/github.com/vladimirvivien/gexe/@v/v0.1.1.mod427131847.tmp: permission denied
+go get: upgraded github.com/onsi/gomega v1.16.0 => v1.18.1
+go get: upgraded golang.org/x/sys v0.0.0-20210603081109-ebe580a85c40 => v0.0.0-20211216021012-1d35b9e2eb4e
+./packages/cert-manager/1.5.3/cert-manager-test.sh
+Error: Get "https://127.0.0.1:41439/api?timeout=32s": dial tcp 127.0.0.1:41439: connect: connection refused
+Error: exit status 1
+Error: Get "https://127.0.0.1:41439/api?timeout=32s": dial tcp 127.0.0.1:41439: connect: connection refused
+Error: exit status 1
+make: *** [cert-manager] Error 1
+./test/framework/docker-standalone-wrapper.sh: line 46: test/gatekeeper/e2e-test.sh: No such file or directory
+[32mGatekeeper run complete
+[0m./test/framework/docker-standalone-wrapper.sh: line 48: test/smoke/packages/contour/1.18.2/contour-test.sh: No such file or directory
+[32mContour run complete
+[0m./test/framework/docker-standalone-wrapper.sh: line 50: test/smoke/packages/cert-manager/1.5.3/cert-manager-test.sh: No such file or directory
+[32mCert-manager run complete
+[0m./test/framework/docker-standalone-wrapper.sh: line 52: test/smoke/packages/fluent-bit/1.7.5/fluent-bit-test.sh: No such file or directory
+[32mfluent-bit run complete
+[0m./test/framework/docker-standalone-wrapper.sh: line 54: test/smoke/packages/local-path-storage/0.0.20/local-path-storage-test.sh: No such file or directory
+[32mlocal-storage-path run complete
+[0m./test/framework/docker-standalone-wrapper.sh: line 56: cd: test/e2e: No such file or directory
+[32mexternal-dns run complete
+[0m./test/framework/docker-standalone-wrapper.sh: line 58: cd: test/e2e: No such file or directory
+[32mmultius-cni run complete
+[0m[36m#########################################
+[0m[36mCollect support bundles
+[0m[36m#########################################
+[0m2022/03/13 20:50:49 Warn: skipping bootstrap cluster diagnostics: failed to list clusters: command "docker ps -a --filter label=io.x-k8s.kind.cluster --format '{{.Label "io.x-k8s.kind.cluster"}}'" failed with error: exit status 1
+2022/03/13 20:50:49 Warn: skipping management cluster diagnostics: management cluster: name not set
+2022/03/13 20:50:49 Info: Retrieving workload cluster credentials
+2022/03/13 20:50:50 Info: Retrieving workload cluster: cluster=guest-cluster-30773; context=guest-cluster-30773-admin@guest-cluster-30773; kubeconfig=/Users/arpithah/.kube/config;
+2022/03/13 20:50:50 Info: Capturing pod logs: cluster=guest-cluster-30773; kubeconf="kube_config"(cluster_context = "guest-cluster-30773-admin@guest-cluster-30773", path = "/Users/arpithah/.kube/config")
+2022/03/13 20:50:50 Warn: skipping workload cluster diagnostics: exec failed: Traceback (most recent call last):
+  scripts/workload_cluster.star:98:9: in <toplevel>
+  scripts/workload_cluster.star:88:30: in diagnose
+  scripts/workload_cluster.star:27:24: in diagnose_workload_cluster
+  scripts/lib.star:25:17: in capture_k8s_objects
+  <builtin>: in kube_get
+Error: could not initialize search client: context "guest-cluster-30773-admin@guest-cluster-30773" does not exist
+[36m#########################################
+[0m[36mCleanup the cluster
+[0m[36m#########################################
+[0m./test/framework/docker-standalone-wrapper.sh: line 69: test/docker/run-tce-docker-standalone-cluster.sh: No such file or directory
+[32mDeleting standalone cluster complete
+[0m
